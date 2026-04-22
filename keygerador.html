@@ -69,89 +69,100 @@
     <button onclick="limparBanco()" style="background:#400; color:red; margin-top: 15px;">APAGAR TUDO</button>
 </div>
 
-<script>
-    function logar() {
-        if(document.getElementById('pass').value === "\\EDITOR-MG/") {
-            abrirAba('aba-gerar');
-        } else { alert("ACESSO NEGADO!"); }
-    }
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getDatabase, ref, set, get, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-    function abrirAba(id) {
-        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
-        document.getElementById(id).classList.remove('hidden');
-        if(id === 'aba-lista') atualizarLista();
-    }
+    const firebaseConfig = {
+      apiKey: "AIzaSyAov8lQc9GKeV-SokT5gjv-aLCew2C6M-A",
+      authDomain: "mg00-ed424.firebaseapp.com",
+      databaseURL: "https://mg00-ed424-default-rtdb.firebaseio.com",
+      projectId: "mg00-ed424",
+      storageBucket: "mg00-ed424.firebasestorage.app",
+      messagingSenderId: "877652383572",
+      appId: "1:877652383572:web:96cd6ad86344741ad31ac1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
     function calcularExp(dias) {
         return dias === 999 ? 9999999999999 : Date.now() + (dias * 24 * 60 * 60 * 1000);
     }
 
-    function gerarAuto() {
-        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
+    window.logar = function() {
+        if(document.getElementById('pass').value === "\\EDITOR-MG/") {
+            abrirAba('aba-gerar');
+        } else { alert("ACESSO NEGADO!"); }
+    }
+
+    window.abrirAba = function(id) {
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        if(id === 'aba-lista') atualizarLista();
+    }
+
+    window.gerarAuto = async function() {
         const key = "MG-" + Math.random().toString(36).substr(2, 6).toUpperCase();
         const dias = parseInt(document.getElementById('tempo').value);
-        db[key] = calcularExp(dias);
-        localStorage.setItem('MG_DB', JSON.stringify(db));
-        alert("KEY AUTOMÁTICA CRIADA: " + key);
+        await set(ref(db, 'keys/' + key), calcularExp(dias));
+        alert("KEY AUTOMÁTICA CRIADA NA NUVEM: " + key);
     }
 
-    function salvarManual() {
+    window.salvarManual = async function() {
         const key = document.getElementById('manual-key').value.trim().toUpperCase();
         if(!key) return alert("Escreva algo!");
-        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
         const dias = parseInt(document.getElementById('tempo').value);
-        db[key] = calcularExp(dias);
-        localStorage.setItem('MG_DB', JSON.stringify(db));
+        await set(ref(db, 'keys/' + key), calcularExp(dias));
         document.getElementById('manual-key').value = "";
-        alert("KEY MANUAL SALVA: " + key);
+        alert("KEY MANUAL SALVA NA NUVEM: " + key);
     }
 
-    function organizarBulk() {
+    window.organizarBulk = async function() {
         const text = document.getElementById('bulk-keys').value.trim();
         if(!text) return alert("Cole as chaves!");
-        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
         const dias = parseInt(document.getElementById('bulk-tempo').value);
         const exp = calcularExp(dias);
         const linhas = text.split('\n');
-        let cont = 0;
-        linhas.forEach(linha => {
+        for (let linha of linhas) {
             let k = linha.trim().toUpperCase();
-            if(k) { db[k] = exp; cont++; }
-        });
-        localStorage.setItem('MG_DB', JSON.stringify(db));
+            if(k) await set(ref(db, 'keys/' + k), exp);
+        }
         document.getElementById('bulk-keys').value = "";
-        alert(cont + " KEYS SALVAS!");
+        alert("KEYS SALVAS NA NUVEM!");
         abrirAba('aba-lista');
     }
 
-    function atualizarLista() {
+    window.atualizarLista = async function() {
         const lista = document.getElementById('lista');
-        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
+        lista.innerHTML = "Carregando...";
+        const snapshot = await get(ref(db, 'keys'));
         lista.innerHTML = "";
-        Object.keys(db).reverse().forEach(k => {
-            const exp = db[k] > 2000000000000 ? "PERMANENTE" : new Date(db[k]).toLocaleString();
-            lista.innerHTML += `
-                <div class="key-item">
-                    <div><b>${k}</b><br><small>Expira: ${exp}</small></div>
-                    <div class="actions">
-                        <button style="background:red; color:white;" onclick="remover('${k}')">X</button>
-                    </div>
-                </div>`;
-        });
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            Object.keys(data).reverse().forEach(k => {
+                const exp = data[k] > 2000000000000 ? "PERMANENTE" : new Date(data[k]).toLocaleString();
+                lista.innerHTML += `
+                    <div class="key-item">
+                        <div><b>${k}</b><br><small>Expira: ${exp}</small></div>
+                        <div class="actions">
+                            <button style="background:red; color:white;" onclick="remover('${k}')">X</button>
+                        </div>
+                    </div>`;
+            });
+        }
     }
 
-    function remover(k) {
+    window.remover = async function(k) {
         if(confirm("Deletar a key: " + k + "?")) {
-            const db = JSON.parse(localStorage.getItem('MG_DB'));
-            delete db[k];
-            localStorage.setItem('MG_DB', JSON.stringify(db));
+            await remove(ref(db, 'keys/' + k));
             atualizarLista();
         }
     }
 
-    function limparBanco() {
-        if(confirm("APAGAR TUDO?")) {
-            localStorage.removeItem('MG_DB');
+    window.limparBanco = async function() {
+        if(confirm("APAGAR TUDO DA NUVEM?")) {
+            await remove(ref(db, 'keys'));
             atualizarLista();
         }
     }
