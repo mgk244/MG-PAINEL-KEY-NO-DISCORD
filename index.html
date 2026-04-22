@@ -12,7 +12,6 @@
             --bg-option: rgba(255, 255, 255, 0.05);
         }
 
-        /* EFEITOS DE RANK */
         .rank-dono { border-color: #ffd700 !important; box-shadow: 0 0 30px #ffd700 !important; }
         .rank-dono h2 { color: #ffd700 !important; text-shadow: 0 0 15px #ffd700 !important; }
         .rank-adm { border-color: #c0c0c0 !important; box-shadow: 0 0 30px #c0c0c0 !important; }
@@ -88,7 +87,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAov8lQc9GKeV-SokT5gjv-aLCew2C6M-A",
@@ -97,22 +96,70 @@
       projectId: "mg00-ed424",
       storageBucket: "mg00-ed424.firebasestorage.app",
       messagingSenderId: "877652383572",
-      appId: "1:877652383572:web:96cd6ad86344741ad31ac1",
-      measurementId: "G-6FV3VCC1D3"
+      appId: "1:877652383572:web:96cd6ad86344741ad31ac1"
     };
 
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    const db = getDatabase(app);
+
+    window.verificarKey = async function() {
+        const key = document.getElementById('key-input').value.trim().toUpperCase();
+        if(!key) return;
+
+        document.getElementById('btn-entrar').style.display='none';
+        document.getElementById('loading-box').style.display='block';
+        
+        let p = 0;
+        const it = setInterval(async () => {
+            p += 10; 
+            document.getElementById('progress-bar').style.width = p + "%";
+            if(p >= 100){
+                clearInterval(it);
+                
+                // Keys Maestras
+                if(key === "MG-DONO-VIP") { liberarAcesso('rank-dono', 9999999999999); return; }
+                if(key === "MG-KEY-ADM") { liberarAcesso('rank-adm', 9999999999999); return; }
+                if(key === "PH-KEY-ADMG") { liberarAcesso('rank-ph', 9999999999999); return; }
+
+                // Consulta Firebase
+                try {
+                    const snapshot = await get(ref(db, 'keys/' + key));
+                    if(snapshot.exists()){
+                        const expira = snapshot.val();
+                        if(Date.now() > expira) {
+                            alert("KEY EXPIROU!");
+                            location.reload();
+                        } else {
+                            liberarAcesso('', expira);
+                        }
+                    } else {
+                        alert("KEY INVÁLIDA!");
+                        location.reload();
+                    }
+                } catch(e) {
+                    alert("ERRO DE CONEXÃO!");
+                    location.reload();
+                }
+            }
+        }, 400); 
+    }
+
+    function liberarAcesso(rank, tempo) {
+        const menu = document.getElementById('mod-menu');
+        if(rank) menu.classList.add(rank);
+        document.getElementById('login-screen').style.display='none';
+        menu.style.display='block';
+        iniciarTimer(tempo);
+    }
 </script>
 
 <script>
+    // Código visual original mantido
     const canvas = document.getElementById('matrix-canvas');
     const ctx = canvas.getContext('2d');
-    
     const letters = "エムジー0000エ1ム0ジ0ー00";
     const fontSize = 16;
-    let columns;
-    let drops;
+    let columns, drops;
 
     function initMatrix() {
         canvas.width = window.innerWidth;
@@ -126,7 +173,6 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--main-color').trim() || "#ff0000";
         ctx.font = fontSize + 'px arial';
-        
         for (let i = 0; i < drops.length; i++) {
             const text = letters.charAt(Math.floor(Math.random() * letters.length));
             ctx.fillText(text, i * fontSize, drops[i] * fontSize);
@@ -153,35 +199,6 @@
 
     function travaHS(el) { if (el.checked) document.querySelectorAll('.hs-opt').forEach(hs => { if (hs !== el) hs.checked = false; }); }
 
-    function verificarKey() {
-        const key = document.getElementById('key-input').value.trim();
-        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
-        if(!key) return;
-
-        document.getElementById('btn-entrar').style.display='none';
-        document.getElementById('loading-box').style.display='block';
-        
-        let p = 0;
-        // Velocidade ajustada: 400ms * 10 passos = 4 segundos de espera (faixa de 3 a 5s)
-        const it = setInterval(() => {
-            p += 10; 
-            document.getElementById('progress-bar').style.width = p + "%";
-            if(p >= 100){
-                clearInterval(it);
-                const menu = document.getElementById('mod-menu');
-                if(key === "MG-DONO-VIP") { menu.classList.add('rank-dono'); iniciarTimer(9999999999999); }
-                else if(key === "MG-KEY-ADM") { menu.classList.add('rank-adm'); iniciarTimer(9999999999999); }
-                else if(key === "PH-KEY-ADMG") { menu.classList.add('rank-ph'); iniciarTimer(9999999999999); }
-                else if(db[key]) {
-                    if(Date.now() > db[key]) { alert("KEY INVÁLIDA OU EXPIROU!"); location.reload(); }
-                    else { iniciarTimer(db[key]); }
-                } else { alert("KEY INVÁLIDA!"); location.reload(); }
-                document.getElementById('login-screen').style.display='none';
-                menu.style.display='block';
-            }
-        }, 400); 
-    }
-
     function iniciarTimer(expira) {
         const display = document.getElementById('timer-key');
         const loop = setInterval(() => {
@@ -198,7 +215,6 @@
         document.getElementById('btn-ff').style.display = "none";
         document.getElementById('btn-ffmax').style.display = "none";
         status.style.display = "block";
-        
         const frases = ["LIMPANDO LOGS...", "INJETANDO...", "SUCESSO!"];
         let i = 0;
         const loop = setInterval(() => {
@@ -207,9 +223,7 @@
             i++;
             if (i >= frases.length) { 
                 clearInterval(loop); 
-                setTimeout(() => {
-                    window.location.href = `intent://#Intent;scheme=freefire;package=${pkg};end`;
-                }, 500);
+                setTimeout(() => { window.location.href = `intent://#Intent;scheme=freefire;package=${pkg};end`; }, 500);
             }
         }, 600);
     }
