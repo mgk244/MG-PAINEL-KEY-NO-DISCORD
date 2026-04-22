@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerador de Keys - MG</title>
+    <style>
+        body { background: #000; color: #00ff41; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        .container { width: 600px; border: 2px solid #00ff41; padding: 40px; border-radius: 20px; background: rgba(0,20,0,0.95); box-shadow: 0 0 40px #00ff41; text-align: center; position: relative; }
+        h1 { font-size: 28px; text-shadow: 0 0 10px #00ff41; border-bottom: 2px solid #00ff41; padding-bottom: 15px; margin-top: 0; margin-bottom: 25px; }
+        input, select, textarea { width: 100%; padding: 15px; margin-bottom: 15px; background: #000; border: 1px solid #00ff41; color: #00ff41; font-weight: bold; font-size: 16px; box-sizing: border-box; }
+        textarea { height: 150px; resize: none; font-size: 14px; }
+        button { width: 100%; padding: 15px; background: #00ff41; color: #000; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; text-transform: uppercase; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #fff; box-shadow: 0 0 20px #fff; }
+        .btn-aba { background: transparent; color: #00ff41; border: 1px solid #00ff41; margin-top: 15px; }
+        .key-list-area { max-height: 350px; overflow-y: auto; text-align: left; margin-top: 20px; padding-right: 10px; }
+        .key-item { background: rgba(0,255,65,0.05); padding: 15px; margin-bottom: 10px; border-left: 5px solid #00ff41; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .actions button { width: auto; padding: 8px 12px; font-size: 12px; margin: 0 5px; }
+        .hidden { display: none; }
+        label { display: block; text-align: left; font-size: 14px; margin-bottom: 8px; color: #fff; font-weight: bold; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #00ff41; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="login-admin">
+    <h1>TERMINAL DE COMANDO</h1>
+    <input type="password" id="pass" placeholder="DIGITE A SENHA MESTRA">
+    <button onclick="logar()">INICIAR SISTEMA</button>
+</div>
+
+<div class="container hidden" id="aba-gerar">
+    <h1>PAINEL DE CRIAÇÃO</h1>
+    <label>GERAR KEY AUTOMÁTICA:</label>
+    <select id="tempo">
+        <option value="1">1 DIA</option>
+        <option value="7">7 DIAS</option>
+        <option value="30">30 DIAS</option>
+        <option value="999">PERMANENTE</option>
+    </select>
+    <button onclick="gerarAuto()">GERAR AUTOMÁTICO</button>
+    <hr style="border: 1px solid #004400; margin: 20px 0;">
+    <label>ESCREVER KEY MANUAL:</label>
+    <input type="text" id="manual-key" placeholder="NOME DA KEY (Ex: MG-USER)">
+    <button onclick="salvarManual()">SALVAR KEY MANUAL</button>
+    <button class="btn-aba" onclick="abrirAba('aba-organizar')">🧩 ORGANIZADOR EM MASSA (BULK)</button>
+    <button class="btn-aba" onclick="abrirAba('aba-lista')">📦 VER BANCO DE KEYS</button>
+</div>
+
+<div class="container hidden" id="aba-organizar">
+    <h1>ORGANIZADOR DE KEYS</h1>
+    <label>COLE AS KEYS (Uma por linha):</label>
+    <textarea id="bulk-keys" placeholder="KEY-01&#10;KEY-02"></textarea>
+    <label>TEMPO PARA ESSAS KEYS:</label>
+    <select id="bulk-tempo">
+        <option value="1">1 DIA</option>
+        <option value="7">7 DIAS</option>
+        <option value="30">30 DIAS</option>
+        <option value="999">PERMANENTE</option>
+    </select>
+    <button onclick="organizarBulk()">ORGANIZAR E SALVAR TUDO</button>
+    <button class="btn-aba" onclick="abrirAba('aba-gerar')">⬅ VOLTAR</button>
+</div>
+
+<div class="container hidden" id="aba-lista">
+    <h1>BANCO DE DADOS</h1>
+    <div class="key-list-area" id="lista"></div>
+    <button onclick="abrirAba('aba-gerar')">⬅ VOLTAR</button>
+    <button onclick="limparBanco()" style="background:#400; color:red; margin-top: 15px;">APAGAR TUDO</button>
+</div>
+
+<script>
+    function logar() {
+        if(document.getElementById('pass').value === "\\EDITOR-MG/") {
+            abrirAba('aba-gerar');
+        } else { alert("ACESSO NEGADO!"); }
+    }
+
+    function abrirAba(id) {
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        if(id === 'aba-lista') atualizarLista();
+    }
+
+    function calcularExp(dias) {
+        return dias === 999 ? 9999999999999 : Date.now() + (dias * 24 * 60 * 60 * 1000);
+    }
+
+    function gerarAuto() {
+        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
+        const key = "MG-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+        const dias = parseInt(document.getElementById('tempo').value);
+        db[key] = calcularExp(dias);
+        localStorage.setItem('MG_DB', JSON.stringify(db));
+        alert("KEY AUTOMÁTICA CRIADA: " + key);
+    }
+
+    function salvarManual() {
+        const key = document.getElementById('manual-key').value.trim().toUpperCase();
+        if(!key) return alert("Escreva algo!");
+        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
+        const dias = parseInt(document.getElementById('tempo').value);
+        db[key] = calcularExp(dias);
+        localStorage.setItem('MG_DB', JSON.stringify(db));
+        document.getElementById('manual-key').value = "";
+        alert("KEY MANUAL SALVA: " + key);
+    }
+
+    function organizarBulk() {
+        const text = document.getElementById('bulk-keys').value.trim();
+        if(!text) return alert("Cole as chaves!");
+        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
+        const dias = parseInt(document.getElementById('bulk-tempo').value);
+        const exp = calcularExp(dias);
+        const linhas = text.split('\n');
+        let cont = 0;
+        linhas.forEach(linha => {
+            let k = linha.trim().toUpperCase();
+            if(k) { db[k] = exp; cont++; }
+        });
+        localStorage.setItem('MG_DB', JSON.stringify(db));
+        document.getElementById('bulk-keys').value = "";
+        alert(cont + " KEYS SALVAS!");
+        abrirAba('aba-lista');
+    }
+
+    function atualizarLista() {
+        const lista = document.getElementById('lista');
+        const db = JSON.parse(localStorage.getItem('MG_DB')) || {};
+        lista.innerHTML = "";
+        Object.keys(db).reverse().forEach(k => {
+            const exp = db[k] > 2000000000000 ? "PERMANENTE" : new Date(db[k]).toLocaleString();
+            lista.innerHTML += `
+                <div class="key-item">
+                    <div><b>${k}</b><br><small>Expira: ${exp}</small></div>
+                    <div class="actions">
+                        <button style="background:red; color:white;" onclick="remover('${k}')">X</button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function remover(k) {
+        if(confirm("Deletar a key: " + k + "?")) {
+            const db = JSON.parse(localStorage.getItem('MG_DB'));
+            delete db[k];
+            localStorage.setItem('MG_DB', JSON.stringify(db));
+            atualizarLista();
+        }
+    }
+
+    function limparBanco() {
+        if(confirm("APAGAR TUDO?")) {
+            localStorage.removeItem('MG_DB');
+            atualizarLista();
+        }
+    }
+</script>
+</body>
+</html>
